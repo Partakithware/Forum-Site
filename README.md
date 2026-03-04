@@ -1,5 +1,5 @@
 # Forum-Site
-A basic frontend and backend working [template] for creating your own forum site. Keeping it simple due to not feeling like writing this out at the moment.
+A basic frontend and backend working [sort of a starter template] for creating your own forum site. Keeping it simple due to not feeling like writing this out at the moment.
 
 ![Example Picture](./example-pictures/1.png)
 
