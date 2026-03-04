@@ -1,5 +1,7 @@
 ## Deployment Instructions
 
+This is of course just some paths you can take not literal instructions that need to be followed 100%.
+
 ### Deploy Backend to Railway
 
 1. Create account at https://railway.app
