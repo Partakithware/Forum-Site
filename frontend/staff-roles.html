@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Staff Roles — FMGP</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/themes/dark.css">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/shoelace-autoloader.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="sl-theme-dark">
+  <div class="container">
+    <header>
+      <div class="header-brand">
+        <h1 onclick="window.location.href='index.html'">FMGP</h1>
+        <h4>FindMyGamePlease</h4>
+      </div>
+      <sl-button href="index.html" variant="default" size="small">
+        <sl-icon slot="prefix" name="arrow-left"></sl-icon>
+        Back to Forum
+      </sl-button>
+    </header>
+
+    <div class="staff-header">
+      <h2>
+        <sl-icon name="shield-fill"></sl-icon>
+        Staff Role Management
+      </h2>
+    </div>
+
+    <div id="setup-banner" style="display: none;" class="info-banner warning">
+      <h3><sl-icon name="exclamation-triangle"></sl-icon> Initial Setup Required</h3>
+      <p>No owner has been set for this forum. You can claim ownership by setting yourself as the Owner.</p>
+    </div>
+
+    <div id="info-banner" style="display: none;" class="info-banner">
+      <h3><sl-icon name="info-circle"></sl-icon> Role Permissions</h3>
+      <p><strong>Owner:</strong> Full control over the forum and all users</p>
+      <p><strong>Admin:</strong> Can manage users and moderate content</p>
+      <p><strong>Moderator:</strong> Can edit and delete posts, moderate discussions</p>
+      <p><strong>Developer:</strong> Technical role with no special permissions</p>
+      <p><strong>Member:</strong> Standard user with basic permissions</p>
+    </div>
+
+    <div id="loading-container" class="loading">
+      <sl-spinner style="font-size: 2rem;"></sl-spinner>
+      <p>Loading users...</p>
+    </div>
+
+    <div id="users-container" class="users-grid" style="display: none;"></div>
+  </div>
+
+  <script type="module">
+    const API_URL = 'http://localhost:3000/api';
+    let currentUser = null;
+    let users = [];
+    let hasOwner = false;
+
+    const roleColors = { 'Owner': 'danger', 'Admin': 'warning', 'Moderator': 'success', 'Developer': 'primary', 'Member': 'neutral' };
+
+    async function checkPermissions() {
+      try {
+        const response = await fetch(`${API_URL}/auth/me`, { credentials: 'include' });
+        if (!response.ok) { alert('Please login to access this page'); window.location.href = 'login.html'; return false; }
+        currentUser = await response.json();
+        const usersResponse = await fetch(`${API_URL}/users/all`, { credentials: 'include' });
+        if (usersResponse.ok) {
+          const allUsers = await usersResponse.json();
+          hasOwner = allUsers.some(u => u.role === 'Owner');
+          const updatedCurrentUser = allUsers.find(u => u.id === currentUser.user.id);
+          if (updatedCurrentUser) currentUser.user.role = updatedCurrentUser.role;
+          if (!hasOwner) { document.getElementById('setup-banner').style.display = 'block'; return true; }
+        }
+        if (!['Owner', 'Admin'].includes(currentUser.user.role)) { alert('You do not have permission to access this page'); window.location.href = 'index.html'; return false; }
+        document.getElementById('info-banner').style.display = 'block';
+        return true;
+      } catch (error) { console.error('Permission check failed:', error); alert('Failed to verify permissions'); window.location.href = 'index.html'; return false; }
+    }
+
+    async function loadUsers() {
+      try {
+        const response = await fetch(`${API_URL}/users/all`, { credentials: 'include' });
+        if (!response.ok) throw new Error('Failed to load users');
+        users = await response.json();
+        displayUsers();
+        document.getElementById('loading-container').style.display = 'none';
+        document.getElementById('users-container').style.display = 'flex';
+      } catch (error) {
+        console.error('Failed to load users:', error);
+        document.getElementById('loading-container').innerHTML = '<p style="color: var(--red);">Failed to load users</p>';
+      }
+    }
+
+    function displayUsers() {
+      const container = document.getElementById('users-container');
+      container.innerHTML = users.map(user => {
+        const isCurrentUser = user.id === currentUser.user.id;
+        let canModify;
+        if (!hasOwner && isCurrentUser) canModify = true;
+        else if (hasOwner) canModify = currentUser.user.role === 'Owner' || (currentUser.user.role === 'Admin' && user.role !== 'Owner');
+        else canModify = false;
+
+        return `
+          <div class="user-card">
+            <div class="user-info">
+              <div class="user-name">
+                ${escapeHtml(user.username)}
+                ${isCurrentUser ? '<sl-badge variant="primary" pill>You</sl-badge>' : ''}
+              </div>
+              <div class="user-meta">Joined: ${formatDate(user.created_at)}</div>
+              <div class="current-role">
+                <span>Role:</span>
+                <sl-badge variant="${roleColors[user.role] || 'neutral'}" pill>${user.role}</sl-badge>
+              </div>
+            </div>
+            ${canModify ? `
+              <sl-select class="role-select" data-user-id="${user.id}" value="${user.role}" size="medium">
+                <sl-option value="Owner">Owner</sl-option>
+                <sl-option value="Admin">Admin</sl-option>
+                <sl-option value="Moderator">Moderator</sl-option>
+                <sl-option value="Developer">Developer</sl-option>
+                <sl-option value="Member">Member</sl-option>
+              </sl-select>
+              <div class="action-buttons">
+                <sl-button variant="success" size="medium" data-user-id="${user.id}" class="apply-btn">
+                  <sl-icon slot="prefix" name="check-circle"></sl-icon> Apply
+                </sl-button>
+              </div>` : `
+              <div></div>
+              <div style="color: var(--text-muted); font-style: italic; font-size: 0.8rem;">Cannot modify</div>`}
+          </div>
+        `;
+      }).join('');
+
+      document.querySelectorAll('.apply-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const userId = parseInt(btn.dataset.userId);
+          const select = document.querySelector(`sl-select[data-user-id="${userId}"]`);
+          await updateUserRole(userId, select.value);
+        });
+      });
+    }
+
+    async function updateUserRole(userId, newRole) {
+      const user = users.find(u => u.id === userId);
+      if (newRole === 'Owner' && !confirm(`Make ${user.username} the Owner? This gives full control.`)) return;
+      if (user.role === 'Owner' && newRole !== 'Owner' && !confirm(`Remove ${user.username} from Owner? Make sure another Owner exists!`)) return;
+      try {
+        const response = await fetch(`${API_URL}/users/${userId}/role`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+          body: JSON.stringify({ role: newRole })
+        });
+        if (!response.ok) { const error = await response.json(); throw new Error(error.error || 'Failed to update role'); }
+        alert(`Successfully updated ${user.username}'s role to ${newRole}`);
+        await loadUsers();
+        if (userId === currentUser.user.id) window.location.reload();
+      } catch (error) { console.error('Failed to update role:', error); alert('Failed to update role: ' + error.message); }
+    }
+
+    function escapeHtml(text) { const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
+    function formatDate(dateString) { return new Date(dateString).toLocaleDateString(); }
+
+    async function init() {
+      const hasPermission = await checkPermissions();
+      if (hasPermission) await loadUsers();
+    }
+
+    init();
+  </script>
+</body>
+</html>

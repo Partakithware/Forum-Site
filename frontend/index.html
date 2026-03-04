@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FMGP — FindMyGamePlease</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/themes/dark.css">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/shoelace-autoloader.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="sl-theme-dark">
+  <div class="container">
+    <header>
+      <div class="header-brand">
+        <h1 onclick="window.location.href='index.html'">FMGP</h1>
+        <h4>FindMyGamePlease</h4>
+      </div>
+      <div id="user-section">
+        <sl-button href="login.html" variant="primary" size="small">Login</sl-button>
+        <sl-button href="register.html" variant="default" size="small">Register</sl-button>
+      </div>
+    </header>
+
+    <nav class="breadcrumb" id="breadcrumb">
+      <a href="index.html">🏠 Home</a>
+    </nav>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="category-card active">
+          <h3><sl-icon name="house"></sl-icon> Browse</h3>
+          <a href="index.html">
+            <sl-icon name="grid"></sl-icon>
+            All Posts
+          </a>
+        </div>
+        <div id="categories-container">
+          <sl-spinner style="font-size: 1.75rem; margin: 1.5rem auto; display: block;"></sl-spinner>
+        </div>
+      </aside>
+
+      <main>
+        <div id="auth-required" style="display: none;">
+          <sl-button href="create-post.html" variant="primary" size="medium">
+            <sl-icon slot="prefix" name="plus-circle"></sl-icon>
+            New Post
+          </sl-button>
+        </div>
+
+        <div id="posts-container">
+          <sl-spinner style="font-size: 2rem; margin: 3rem auto; display: block;"></sl-spinner>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script type="module">
+    const API_URL = 'http://localhost:3000/api';
+    let currentUser = null;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const categorySlug = urlParams.get('category');
+
+    async function checkAuth() {
+      try {
+        const response = await fetch(`${API_URL}/auth/me`, { credentials: 'include' });
+        if (response.ok) {
+          currentUser = await response.json();
+          document.getElementById('user-section').innerHTML = `
+            <span>👋 ${currentUser.user.username}</span>
+            <sl-button href="user-profile.html" variant="text" size="small">Profile</sl-button>
+            <sl-button id="logout-btn" variant="default" size="small">Logout</sl-button>
+          `;
+          document.getElementById('auth-required').style.display = 'flex';
+          document.getElementById('logout-btn').addEventListener('click', logout);
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+      }
+    }
+
+    async function logout() {
+      try {
+        await fetch(`${API_URL}/auth/logout`, { method: 'POST', credentials: 'include' });
+        location.reload();
+      } catch (error) {
+        console.error('Logout failed:', error);
+      }
+    }
+
+    async function loadCategories() {
+      try {
+        const response = await fetch(`${API_URL}/categories`);
+        const categories = await response.json();
+
+        const container = document.getElementById('categories-container');
+        container.innerHTML = categories.map(category => `
+          <div class="category-card ${categorySlug === category.slug ? 'active' : ''}">
+            <h3>
+              <sl-icon name="${getCategoryIcon(category.slug)}"></sl-icon>
+              ${category.name}
+            </h3>
+            <a href="?category=${category.slug}">
+              <sl-icon name="list-ul"></sl-icon>
+              View Posts
+            </a>
+            ${category.subcategories.length > 0 ? `
+              <div class="subcategory">
+                ${category.subcategories.map(sub => `
+                  <a href="?category=${sub.slug}">
+                    <sl-icon name="chevron-right"></sl-icon>
+                    ${sub.name}
+                  </a>
+                `).join('')}
+              </div>
+            ` : ''}
+          </div>
+        `).join('');
+
+        if (categorySlug) {
+          const category = categories.find(c => c.slug === categorySlug || c.subcategories.some(s => s.slug === categorySlug));
+          if (category) {
+            const subcategory = category.subcategories.find(s => s.slug === categorySlug);
+            updateBreadcrumb(category, subcategory);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load categories:', error);
+        document.getElementById('categories-container').innerHTML =
+          '<p style="color: var(--red); padding: 0.75rem; font-size: 0.82rem;">Failed to load categories</p>';
+      }
+    }
+
+    function updateBreadcrumb(category, subcategory = null) {
+      const breadcrumb = document.getElementById('breadcrumb');
+      if (subcategory) {
+        breadcrumb.innerHTML = `
+          <a href="index.html">🏠 Home</a>
+          <span>/</span>
+          <a href="?category=${category.slug}">${category.name}</a>
+          <span>/</span>
+          <span class="current">${subcategory.name}</span>
+        `;
+      } else {
+        breadcrumb.innerHTML = `
+          <a href="index.html">🏠 Home</a>
+          <span>/</span>
+          <span class="current">${category.name}</span>
+        `;
+      }
+    }
+
+    function getCategoryIcon(slug) {
+      const icons = { 'general': 'chat-dots', 'art': 'palette', 'programming': 'code-slash', 'projects': 'folder' };
+      return icons[slug] || 'folder';
+    }
+
+    async function loadPosts() {
+      try {
+        const url = categorySlug ? `${API_URL}/posts?category=${categorySlug}` : `${API_URL}/posts`;
+        const response = await fetch(url);
+        const posts = await response.json();
+
+        const container = document.getElementById('posts-container');
+
+        if (posts.length === 0) {
+          container.innerHTML = '<div class="no-posts">No posts yet in this category.<br>Be the first to create one! ✨</div>';
+          return;
+        }
+
+        container.innerHTML = posts.map(post => {
+          let roleBadge = '';
+          if (post.user_role && post.user_role !== 'Member') {
+            roleBadge = `<sl-badge variant="${getRoleBadgeVariant(post.user_role)}">${post.user_role}</sl-badge>`;
+          }
+          return `
+            <div class="post-list-item" onclick="window.location.href='post.html?id=${post.id}'">
+              <div class="post-list-header">
+                <div class="post-list-title">${escapeHtml(post.title)}</div>
+              </div>
+              <div class="post-list-meta">
+                <span>👤 ${escapeHtml(post.username)}</span>
+                ${roleBadge ? `<span>·</span>${roleBadge}` : ''}
+                <span>·</span>
+                <sl-badge variant="neutral">${post.category_name}</sl-badge>
+                <span>·</span>
+                <span>${formatDate(post.created_at)}</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        await customElements.whenDefined('sl-badge');
+      } catch (error) {
+        console.error('Load posts error:', error);
+        document.getElementById('posts-container').innerHTML =
+          '<div class="no-posts" style="color: var(--red);">Failed to load posts 😢</div>';
+      }
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function formatDate(dateString) {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diff = now - date;
+      const minutes = Math.floor(diff / 60000);
+      const hours = Math.floor(diff / 3600000);
+      const days = Math.floor(diff / 86400000);
+      if (minutes < 1) return 'just now';
+      if (minutes < 60) return `${minutes}m ago`;
+      if (hours < 24) return `${hours}h ago`;
+      if (days < 7) return `${days}d ago`;
+      return date.toLocaleDateString();
+    }
+
+    function getRoleBadgeVariant(role) {
+      const variants = { 'Owner': 'danger', 'Admin': 'warning', 'Moderator': 'success', 'Developer': 'primary' };
+      return variants[role] || 'neutral';
+    }
+
+    checkAuth();
+    loadCategories();
+    loadPosts();
+  </script>
+</body>
+</html>

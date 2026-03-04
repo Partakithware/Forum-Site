@@ -1,0 +1,112 @@
+## Deployment Instructions
+
+### Deploy Backend to Railway
+
+1. Create account at https://railway.app
+2. Install Railway CLI:
+   ```bash
+   npm install -g @railway/cli
+   ```
+
+3. Login and initialize:
+   ```bash
+   railway login
+   cd backend
+   railway init
+   ```
+
+4. Set environment variables in Railway dashboard:
+   - `SESSION_SECRET`: Generate a random string
+   - `FRONTEND_URL`: Your frontend URL (e.g., `https://your-site.web.app`)
+   - `NODE_ENV`: `production`
+
+5. Deploy:
+   ```bash
+   railway up
+   ```
+
+6. Get your backend URL from Railway dashboard (e.g., `https://your-app.railway.app`)
+
+### Deploy Frontend to Firebase
+
+1. Install Firebase CLI:
+   ```bash
+   npm install -g firebase-tools
+   ```
+
+2. Login and initialize:
+   ```bash
+   firebase login
+   cd frontend
+   firebase init hosting
+   ```
+
+3. Update `config.js` with your Railway backend URL:
+   ```javascript
+   const API_URL = 'https://your-app.railway.app/api';
+   ```
+
+4. Deploy:
+   ```bash
+   firebase deploy
+   ```
+
+### Alternative: Deploy Frontend to Netlify/Vercel
+
+**Netlify:**
+```bash
+npm install -g netlify-cli
+cd frontend
+netlify deploy --prod
+```
+
+**Vercel:**
+```bash
+npm install -g vercel
+cd frontend
+vercel --prod
+```
+
+## Local Development
+
+1. **Start Backend:**
+   ```bash
+   cd backend
+   npm install
+   npm run dev
+   ```
+
+2. **Start Frontend** (use any local server):
+   ```bash
+   cd frontend
+   python -m http.server 8080
+   # or
+   npx serve .
+   # or
+   npx live-server
+   ```
+
+3. Open `http://localhost:8080` in your browser
+
+## Features Included
+
+✅ User authentication (register/login/logout)  
+✅ Create and view forum posts  
+✅ Dark theme with smooth rounded design  
+✅ Quick link buttons for MediaFire, Mega, etc.  
+✅ VirusTotal and Jotti's Malware Scan integration  
+✅ Responsive design  
+✅ SQLite database (file-based, no server needed)  
+✅ Session-based authentication  
+✅ Ready for Railway + Firebase deployment
+
+## Next Steps
+
+- Add post editing/deletion (Added editing so far)
+- Add comments system
+- Add user profiles (template added)
+- Add pagination for posts
+- Add search functionality
+- Add admin/staff moderation tools (Only editing of other users post so far)
+
+To set your role to owner, start the form fresh no .db and create your user....then head to ./staff-roles.html and if you are the first there you can set your user to owner!

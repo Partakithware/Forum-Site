@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — FMGP</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/themes/dark.css">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/shoelace-autoloader.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="sl-theme-dark auth-page">
+  <div class="form-container">
+    <div class="form-card">
+      <h2>Welcome Back</h2>
+      <form id="login-form">
+        <sl-input name="username" label="Username" required autocomplete="username" size="large" style="margin-bottom: 1rem;">
+          <sl-icon name="person" slot="prefix"></sl-icon>
+        </sl-input>
+        <sl-input name="password" label="Password" type="password" required password-toggle autocomplete="current-password" size="large" style="margin-bottom: 1.5rem;">
+          <sl-icon name="lock" slot="prefix"></sl-icon>
+        </sl-input>
+        <sl-button type="submit" variant="primary" size="large" style="width: 100%;">
+          <sl-icon slot="prefix" name="box-arrow-in-right"></sl-icon>
+          Sign In
+        </sl-button>
+      </form>
+      <div style="text-align:center; margin-top: 1rem;">
+        <sl-button href="index.html" variant="text" size="small">Cancel</sl-button>
+      </div>
+      <p class="footer-text">No account? <a href="register.html">Create one</a></p>
+    </div>
+  </div>
+
+  <script type="module">
+    const API_URL = 'http://localhost:3000/api';
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const submitBtn = e.target.querySelector('sl-button[type="submit"]');
+      submitBtn.loading = true;
+      try {
+        const response = await fetch(`${API_URL}/auth/login`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+          body: JSON.stringify({ username: formData.get('username'), password: formData.get('password') })
+        });
+        if (response.ok) { window.location.href = 'index.html'; }
+        else { const error = await response.json(); alert(error.error || 'Login failed. Please check your credentials.'); }
+      } catch (error) { alert('Login failed. Please try again.'); }
+      finally { submitBtn.loading = false; }
+    });
+  </script>
+</body>
+</html>

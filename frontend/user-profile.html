@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile — FMGP</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/themes/dark.css">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/shoelace-autoloader.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="sl-theme-dark">
+  <div class="container">
+    <header>
+      <div class="header-brand">
+        <h1 onclick="window.location.href='index.html'">FMGP</h1>
+        <h4>FindMyGamePlease</h4>
+      </div>
+      <div id="user-section">
+        <sl-button href="index.html" variant="default" size="small">
+          <sl-icon slot="prefix" name="arrow-left"></sl-icon>
+          Back to Forum
+        </sl-button>
+      </div>
+    </header>
+
+    <div id="profile-content" class="profile-grid"></div>
+  </div>
+
+  <script>
+    const API_URL = 'http://localhost:3000/api';
+
+    async function loadProfile() {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        let targetId = params.get('id');
+
+        const authRes = await fetch(`${API_URL}/auth/me`, { credentials: 'include' });
+        const authData = await authRes.json();
+        const currentUser = authData.user;
+
+        if (!targetId) {
+          if (currentUser && currentUser.id) { targetId = currentUser.id; }
+          else { window.location.href = 'index.html'; return; }
+        }
+
+        const profileRes = await fetch(`${API_URL}/users/${targetId}`);
+        if (!profileRes.ok) throw new Error('User not found');
+        const rawData = await profileRes.json();
+
+        const profile = {
+          id: rawData.id,
+          username: rawData.username || 'Unknown User',
+          role: rawData.role || 'Member',
+          created_at: rawData.created_at || new Date(),
+          stats: rawData.stats || { post_count: 0 }
+        };
+
+        const isOwnProfile = currentUser && currentUser.id === profile.id;
+        const isStaff = currentUser && ['Owner', 'Admin', 'Moderator'].includes(currentUser.role);
+
+        const container = document.getElementById('profile-content');
+        container.innerHTML = `
+          <div class="profile-card">
+            <sl-avatar class="avatar-large" label="${profile.username}"></sl-avatar>
+            <h2>${profile.username}</h2>
+            <sl-badge variant="${getBadgeVariant(profile.role)}">${profile.role}</sl-badge>
+            <div class="stat-box">
+              <div class="stat-label">Total Posts</div>
+              <div class="stat-value">${profile.stats.post_count}</div>
+            </div>
+            <div class="join-date">
+              <sl-icon name="calendar-event"></sl-icon>
+              Joined ${new Date(profile.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+            </div>
+            <div class="profile-actions">
+              ${isOwnProfile ? `
+                <sl-button variant="primary" outline id="edit-btn">
+                  <sl-icon slot="prefix" name="pencil"></sl-icon>
+                  Edit Profile
+                </sl-button>` : ''}
+              ${isStaff && !isOwnProfile ? `
+                <sl-button variant="danger" outline>
+                  <sl-icon slot="prefix" name="slash-circle"></sl-icon>
+                  Ban User
+                </sl-button>` : ''}
+            </div>
+          </div>
+
+          <div class="profile-details-card">
+            <sl-tab-group>
+              <sl-tab slot="nav" panel="activity">
+                <sl-icon slot="prefix" name="activity"></sl-icon>
+                Recent Activity
+              </sl-tab>
+              ${isOwnProfile ? `
+                <sl-tab slot="nav" panel="settings">
+                  <sl-icon slot="prefix" name="gear"></sl-icon>
+                  Account Settings
+                </sl-tab>` : ''}
+
+              <sl-tab-panel name="activity">
+                <div class="activity-placeholder">
+                  <sl-icon name="inbox"></sl-icon>
+                  <p>User's recent posts will appear here...</p>
+                </div>
+              </sl-tab-panel>
+
+              ${isOwnProfile ? `
+                <sl-tab-panel name="settings">
+                  <form id="settings-form">
+                    <sl-input label="Change Username" value="${profile.username}" help-text="Note: This may affect your login." filled></sl-input>
+                    <sl-input type="password" label="New Password" password-toggle filled></sl-input>
+                    <sl-button variant="success" type="submit">
+                      <sl-icon slot="prefix" name="check-circle"></sl-icon>
+                      Save Changes
+                    </sl-button>
+                  </form>
+                </sl-tab-panel>` : ''}
+            </sl-tab-group>
+          </div>
+        `;
+      } catch (err) {
+        console.error(err);
+        document.getElementById('profile-content').innerHTML = `
+          <sl-alert variant="danger" open style="grid-column: span 2;">
+            <sl-icon slot="icon" name="exclamation-octagon"></sl-icon>
+            <strong>Profile Not Found</strong><br>
+            The profile you're looking for doesn't exist or you are not logged in.
+          </sl-alert>
+        `;
+      }
+    }
+
+    function getBadgeVariant(role) {
+      if (role === 'Owner') return 'danger';
+      if (role === 'Admin') return 'warning';
+      if (role === 'Moderator') return 'success';
+      return 'neutral';
+    }
+
+    loadProfile();
+  </script>
+</body>
+</html>
